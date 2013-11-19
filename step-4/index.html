@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Step 4 - Magix BP</title>
+  <link rel="stylesheet" type="text/css" href="http://g.tbcdn.cn/thx/cube/1.0.7/cube-min.css">
+  <link rel="stylesheet" type="text/css" href="app/common/assets/css/global.css">
+  <link rel="stylesheet" type="text/css" href="http://a.tbcdn.cn/apps/e/brix/gallery/tables/tables.css">
+</head>
+<body>
+  <script src="http://g.tbcdn.cn/kissy/k/1.4.0/seed-min.js"></script>
+  <script src="http://g.tbcdn.cn/thx/magix/1.1/kissy-magix-min.js"></script>
+  <script>
+  KISSY.config({
+      packages: [
+          {
+              name: 'app',
+              path: '.',
+              debug: true
+          }
+      ]
+  })
+  KISSY.use('magix/magix,node', function(S, Magix) {
+      Magix.start({
+          iniFile: 'app/ini',
+          execError: function(e) {
+              // 为了防止某个视图出错导致整个应用挂掉，压缩版的 magix 会吞掉异常，
+              // 在线上通过如下方式收集错误：
+              //
+              //     new Image().src = '...?msg='+e.message;
+              //
+              // 我们只是初阶教程，直接把异常抛出来即可。
+              throw e
+          }
+      })
+  })
+  </script>
+</body>
+</html>

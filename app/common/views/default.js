@@ -7,6 +7,9 @@ KISSY.add("app/common/views/default", function(S, View, VOM) {
         locationChange: function(e) {
             if (e.changed.isPathname()) {
                 this.mountMainFrame();
+            } else if (e.changed.isParam('sortby,sortkey')) {
+                e.toChildren('magix_vf_main');
+                // e.prevent();
             }
         },
         mountMainFrame: function() {

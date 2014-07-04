@@ -1,101 +1,75 @@
-## 使用Model与ModelManager请求数据
+## 打包上线
 
-在src/app/目录下建立models文件夹，以便放我们项目中的model与manager
+### 为什么要打包
 
-建立src/app/models/model.js文件，继承mxext/model，并实现sync方法
+为了开发方便，我们在开发时使用模板与代码分离的方式，即我们的每个view都有一个view.js和view.html，开发时Magix内部使用xhr获取对应的模板
 
-```js
-KISSY.add('app/models/model', function(S, Model, IO) {
-    return Model.extend({
-        sync: function(callback) {
-            var me = this;
-            IO({
-                url: me.get('url'),
-                dataType: 'json',
-                success: function(data) {
-                    callback(null, {
-                        list: data
-                    });
-                },
-                error: function(xhr, msg) {
-                    callback(msg);
-                }
-            });
-        }
-    });
-}, {
-    requires: [
-        'magix/model',
-        'io'
-    ]
-});
-```
+然而最终我们的js是需要发布到cdn上的，比如我们的应用域名是：<http://zs.taobao.com>，而我们的js是放在<http://g.alicdn.cn/mm/zs/xxx.js>上，这时候如果使用xhr在zs.taobao.com域名下去获取g.alicdn.cn域名下的资源，是跨域的，处理麻烦。再一个一但开发完成，每个view与它对应的html就是固定的，没必要分开存放，然后再动态获取。既然加载js就肯定会加载html，所以合并是最好的选择
 
-建立Manager，并注册我们项目中要用到的一些接口
+### 如何打包
 
-```js
-KISSY.add('app/models/manager', function(S, BaseManager, Model) {
-    var Manager = BaseManager.create(Model);
-    Manager.registerModels([{
-        name: 'Campaings_List',
-        url: 'api/list.json'
-    }]);
-    return Manager;
-}, {
-    requires: [
-        'magix/manager',
-        'app/models/model'
-    ]
-});
-```
+我们使用grunt来做打包工具
 
-然后修改src/app/views/campaigns/standards.js的render方法成：
+首先你要安装nodejs grunt等，略过
 
-```js
-render: function() {
-    var me = this;
-    var request=Manager.createRequest(me).fetchAll('Campaigns_List', function(e, m) {
-        if (e) {
-            me.setHTML(me.id,e.msg);
-        } else {
-            var list = m.get('list', []);
-            var loc = me.location;
-            var sortby = loc.get('sortby');
-            var sortkey = loc.get('sortkey');
-            if (sortby && sortkey) { //地址栏中存在sortby和sortkey
-                list.sort(function(a, b) { //直接调用数据的sort方法进行排序
-                    var aValue = a[sortkey];
-                    var bValue = b[sortkey];
-                    aValue = parseInt(aValue.substring(0, aValue.length - 1), 10); //因示例中折扣是类似90%这样的字符串，因此去掉%号并转成整数
-                    bValue = parseInt(bValue.substring(0, bValue.length - 1), 10);
-                    if (sortby == 'asc') { //根据排序要求，进行相应的升序降序排序
-                        return aValue - bValue;
-                    } else {
-                        return bValue - aValue;
-                    }
-                });
-            }
-            var html = Mustache.to_html(me.tmpl, {
-                list: list,
-                sortDesc: sortby == 'desc'
-            });
-            me.setHTML(me.id,html);
-        }
-    });
-    me.manage(request);//对请求进行托管
+在项目中建立package.json
+
+```json
+{
+    "name": "magix-tutorial",
+    "version": "0.1.0",
+    "devDependencies": {
+        "grunt": "~0.4.1",
+        "magix-app-build": ""
+    }
 }
 ```
 
-注意对Manager的require
+建立Gruntfile.js
 
 ```js
-requires: ["magix/view", "app/models/manager", "app/common/mustache", 'magix/router']
+module.exports = function(grunt) {
+    grunt.initConfig({
+        pkg: grunt.file.readJSON('package.json'),
+        magix: {
+            build: {
+                //magix view 所在的入口文件夹路径
+                src: './src/',
+                //处理后文件夹的路径
+                dest: './build/'
+            },
+            options: {
+                //压缩级别
+                compress: 'normal',
+                //中文转化unicode
+                c2u: false,
+                //view对应模板字段的key
+                tmplKey: 'template'
+            }
+        }
+    });
+    grunt.loadNpmTasks('magix-app-build');
+    grunt.registerTask('default', ['magix']);
+};
+```
+第一次先运行 npm install 命令
+
+然后运行grunt命令即可
+
+成功后会在根目录与src平级的地方出现一个build文件夹，此时如果要跑压缩后的文件，只需要修改index.html中app的包配置即可
+
+```diff
+KISSY.config({
+      packages: [
+          {
+              name: 'app',
+-             path: './src/',
++             path:'./build',
+-             debug: true,
++             debug: false
+          }
+      ]
+  })
 ```
 
-到此，我们就完成了使用Magix提供的Model与ModelManager来进行管理接口及异步的请求。
-
-如上述示例中展示的代码，我们对me.manage(request)做一个说明：
-
-request.fetchX返回的是Request实例，(查看API)。本身带destroy方法，可以在合适的时候销毁请求，同时Magix内部对Request做了特殊处理，当view的render方法被调用时，就会立即销毁托管的Request实例，而不像前面提到的界面渲染前。
-
-讨论 Magix中的Model
+至此就完成了打包，然后发布即可

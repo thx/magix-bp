@@ -1,7 +1,7 @@
 /*
  * author:xinglie.lkf@taobao.com
  */
-KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache, Router) {
+KISSY.add("app/views/campaigns/standards", function(S, View, Manager, Mustache, Router) {
     return View.extend({
         init: function() {
             this.observeLocation({
@@ -10,15 +10,16 @@ KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache, Route
         },
         render: function() {
             var me = this;
-            IO({
-                url: 'api/list.json',
-                dataType: 'json',
-                success: function(data) {
+            Manager.createRequest(me).fetchAll('Campaigns_List', function(e, m) {
+                if (e) {
+                    me.setHTML(me.id, e.msg);
+                } else {
+                    var list = m.get('list', []);
                     var loc = me.location;
                     var sortby = loc.get('sortby');
                     var sortkey = loc.get('sortkey');
                     if (sortby && sortkey) { //地址栏中存在sortby和sortkey
-                        data.sort(function(a, b) { //直接调用数据的sort方法进行排序
+                        list.sort(function(a, b) { //直接调用数据的sort方法进行排序
                             var aValue = a[sortkey];
                             var bValue = b[sortkey];
                             aValue = parseInt(aValue.substring(0, aValue.length - 1), 10); //因示例中折扣是类似90%这样的字符串，因此去掉%号并转成整数
@@ -31,20 +32,16 @@ KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache, Route
                         });
                     }
                     var html = Mustache.to_html(me.tmpl, {
-                        list: data,
+                        list: list,
                         sortDesc: sortby == 'desc'
                     });
                     me.setHTML(me.id, html);
-                },
-                error: function(xhr, msg) {
-                    me.setHTML(me.id, msg); //出错时，直接显示错误
                 }
             });
         },
-
         'sort<click>': function(e) {
             var loc = this.location;
-            var sortby = loc.get('sortby'); // 获取地址栏当前存放的 sortby 参数，如果地址中不存在则值为 undefined
+            var sortby = loc.get('sortby'); // 获取地址栏当前存放的 sortby 参数，如果地址中不存在则值为 ''
 
             if (sortby == 'desc') {
                 sortby = 'asc';
@@ -60,5 +57,5 @@ KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache, Route
         }
     })
 }, {
-    requires: ["magix/view", "ajax", "app/common/mustache", 'magix/router']
+    requires: ["magix/view", "app/models/manager", "app/common/mustache", 'magix/router']
 });

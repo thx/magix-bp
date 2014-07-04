@@ -1,101 +1,101 @@
-## 异步
+## 使用Model与ModelManager请求数据
 
-考虑第3，第4步中的app/views/campaings/standards render中的IO
+在src/app/目录下建立models文件夹，以便放我们项目中的model与manager
+
+建立src/app/models/model.js文件，继承mxext/model，并实现sync方法
 
 ```js
-return View.extend({
-    render: function() {
-        var me = this;
-        IO({
-            url: 'list.json',
-            dataType: 'json',
-            success: function(data) {
-                var html = Mustache.to_html(me.tmpl, {
-                    list: data
+KISSY.add('app/models/model', function(S, Model, IO) {
+    return Model.extend({
+        sync: function(callback) {
+            var me = this;
+            IO({
+                url: me.get('url'),
+                dataType: 'json',
+                success: function(data) {
+                    callback(null, {
+                        list: data
+                    });
+                },
+                error: function(xhr, msg) {
+                    callback(msg);
+                }
+            });
+        }
+    });
+}, {
+    requires: [
+        'magix/model',
+        'io'
+    ]
+});
+```
+
+建立Manager，并注册我们项目中要用到的一些接口
+
+```js
+KISSY.add('app/models/manager', function(S, BaseManager, Model) {
+    var Manager = BaseManager.create(Model);
+    Manager.registerModels([{
+        name: 'Campaings_List',
+        url: 'api/list.json'
+    }]);
+    return Manager;
+}, {
+    requires: [
+        'magix/manager',
+        'app/models/model'
+    ]
+});
+```
+
+然后修改src/app/views/campaigns/standards.js的render方法成：
+
+```js
+render: function() {
+    var me = this;
+    var request=Manager.createRequest(me).fetchAll('Campaigns_List', function(e, m) {
+        if (e) {
+            me.setHTML(me.id,e.msg);
+        } else {
+            var list = m.get('list', []);
+            var loc = me.location;
+            var sortby = loc.get('sortby');
+            var sortkey = loc.get('sortkey');
+            if (sortby && sortkey) { //地址栏中存在sortby和sortkey
+                list.sort(function(a, b) { //直接调用数据的sort方法进行排序
+                    var aValue = a[sortkey];
+                    var bValue = b[sortkey];
+                    aValue = parseInt(aValue.substring(0, aValue.length - 1), 10); //因示例中折扣是类似90%这样的字符串，因此去掉%号并转成整数
+                    bValue = parseInt(bValue.substring(0, bValue.length - 1), 10);
+                    if (sortby == 'asc') { //根据排序要求，进行相应的升序降序排序
+                        return aValue - bValue;
+                    } else {
+                        return bValue - aValue;
+                    }
                 });
-                me.setHTML(me.id,html);
-            },
-            error: function(xhr, msg) {
-                me.setHTML(me.id,msg); //出错时，直接显示错误
             }
-        });
-    }
-})
+            var html = Mustache.to_html(me.tmpl, {
+                list: list,
+                sortDesc: sortby == 'desc'
+            });
+            me.setHTML(me.id,html);
+        }
+    });
+    me.manage(request);//对请求进行托管
+}
 ```
 
-IO是异步的，当success或error回调时，有可能当前view已经被销毁或被重新渲染。所以当我们在success或error中操作界面时，有可能会找不到节点(view已销毁)或把界面渲染错误
+注意对Manager的require
 
-比如一个带翻页的列表，当用户点击翻页到第2页，在第2页请求未结束时又点击翻页到第3页，此时有2个异步请求，即请求第2页的一个，请求第3页的一个。
-
-问题在于我们无法确保第2页的请求一定先于第3页的请求先返回，假如第3页的请求先返回，第2页的请求后返回，此时我们去操作界面更新时，虽然每次都能更新界面(DOM节点仍然存在)，但会出现先显示第3页后显示第2页的情况。
-
-这仅是IO异步所带来的问题，我们还要面对setTimeout setInterval KISSY.use等非常多的异步，所有的异步在OPOA项目中均存有问题或隐患，因此这也是单页应用想要程序很健壮变得比较难。
-
-Magix的View提供了wrapAsync(1.1版本后)方法，用于解决所有的这种异步所带来的问题，即你只需要将异步回调函数通过该方法进行包装即可。如：
-
-```diff
-return View.extend({
-    render: function() {
-        var me = this;
-        IO({
-            url: 'list.json',
-            dataType: 'json',
--           success: function(data) {
-+           success:me.wrapAsync(function(data) {
-                var html = Mustache.to_html(me.tmpl, {
-                    list: data
-                });
-                me.setHTML(me.id,html);
--           },
-+           }),
--           error: function(xhr, msg) {
-+          error:me.wrapAsync(funcion(xhr,msg) {
-                me.setHTML(me.id,msg); //出错时，直接显示错误
--           }
-+           })
-        });
-    }
-})
+```js
+requires: ["magix/view", "app/models/manager", "app/common/mustache", 'magix/router']
 ```
 
-即wrapAsync可解所有的异步问题
+到此，我们就完成了使用Magix提供的Model与ModelManager来进行管理接口及异步的请求。
 
-**与manage的区别**
+如上述示例中展示的代码，我们对me.manage(request)做一个说明：
 
-wrapAsync是包装异步回调的，manage是用于管理资源的。
-wrapAsync在适当的时候对包装的方法进行调用，manage在适当的时候调用托管资源的destroy方法
+request.fetchX返回的是Request实例，(查看API)。本身带destroy方法，可以在合适的时候销毁请求，同时Magix内部对Request做了特殊处理，当view的render方法被调用时，就会立即销毁托管的Request实例，而不像前面提到的界面渲染前。
 
-二者在某些地方有相似之处，但无法把二者合并
-
-如上的代码也可以用manage改写：
-
-```diff
-return View.extend({
-    render: function() {
-        var me = this;
--       IO({
-+       var xhr=IO({
-            url: 'list.json',
-            dataType: 'json',
-            success: function(data) {
-                var html = Mustache.to_html(me.tmpl, {
-                    list: data
-                });
-                me.setHTML(me.id,html);
-            },
-            error: function(xhr, msg) {
-                me.setHTML(me.id,msg); //出错时，直接显示错误
-            }
-        });
-+      me.manage({
-+          destroy:function(){
-+                 xhr.abort();
-+            }
-+       });
-    }
-})
-```
-
-使用wrapAsync时，并不会调用xhr的abort方法，而使用manage时，会调用到xhr的abort方法，此时需要特别注意KISSY的JSONP
-
-xhr.abort的调用是在更新界面前才会被调用，如果需要在render方法调用时就abort上次的请求，此时无法使用manage，应监听view的prerender事件自行处理，或使用Magix提供的Model与ModelManager
+讨论 Magix中的Model

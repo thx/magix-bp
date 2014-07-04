@@ -1,200 +1,370 @@
-在这个阶段我们会添加一些代码，让菜单区块变得可以正常响应用户交互：
+开发完成顶部，页脚，菜单后，让我们把右侧区域丰满起来吧，根据左侧的菜单改变右侧的内容
 
-![Step 2](http://thx.github.io/magix/assets/img/step-2.png)
+![Step 3](http://thx.github.io/magix/assets/img/step-3.png)
 
-## 视图生命周期
+## 主要区域开发
 
-展现一个视图，并使其可交互，往往分为三个步骤，如 YUI3 中对 widget 的定义：
+### 1. 确定 pathname
 
-1. render ：将 html 结构加入到页面中
-2. bind ：绑定交互事件
-3. sync ：根据状态数据设置 html 的状态（比如本例，设置 menus 视图中的高亮项）
+为了方便后续开发，我们先根据菜单内容规划 pathname，因为是单页应用，所以我们规划的都是逻辑
+地址：
 
-在 Magix 以及后续将介绍的 Brix 组件系统中，我们更惯用的步骤是：
+<table>
+  <tr>
+    <td>首页</td>
+    <td>/home</td>
+  </tr>
+  <tr>
+    <td>推广计划-标准推广</td>
+    <td>/campaings/standards</td>
+  </tr>
+  <tr>
+    <td>账户-充值</td>
+    <td>/account/recharge</td>
+  </tr>
+  <tr>
+    <td>账户-财务记录</td>
+    <td>/account/finance</td>
+  </tr>
+  <tr>
+    <td>账户-操作记录</td>
+    <td>/account/operation</td>
+  </tr>
+  <tr>
+    <td>账户-提醒设置</td>
+    <td>/account/remind</td>
+  </tr>
+</table>
 
-1. render
-2. sync
-3. bind
-
-我们推荐使用模板系统，在 render 时即将 HTML 状态维护好，将步骤1与2结合在一起。但无论如何，
-这三个步骤所涉及的动作，对于任何视图或组件系统都是不可或缺的。我们仍然需要渲染它、设置好它的
-初始状态，给它绑定需要响应的事件。
-
-接下来本例将关注三个任务：
-
-1. render(render+sync) ：菜单渲染，并在渲染之后根据 url 的 pathname，设置高亮菜单项。
-2. observeLocation ：这是单页应用特有的方法，当页面的 url 发生变化，页面不会整体销毁，
-   页面内的视图需要及时正确地做出响应。
-3. events(bind) ：监听菜单点击事件，当点击分组节点时，可以展开或折起其下的二级菜单项。
-
-### render
-
-左侧导航菜单的render方法如下：
-
-```js
-render : function() {
-    this.setHTML(this.id, this.tmpl);
-
-    // 获取 pathname，this.location 由视图的基类传入
-    // pathname 为 #! 之后，下一个 ? 之前（如果有）的部分
-    var pn = this.location.path;
-
-    // this.id 为当前视图所在 vframe 的 id
-    // 在 vframe 内寻找是否有目标为 "#!" + pathname 的链接，如果找到了设置高亮。
-    var link = S.one("#" + this.id).one('a[href="#!' + pn + '"]');
-
-    if (link) {
-        link.addClass('hover');
-
-        // 如果菜单项为二级菜单，展现其所在 ul，并设置正确的父级菜单之前的箭头方向。
-        var topNav = link.parent('.topnav-list');
-        var ul = topNav.one('ul');
-
-        if (ul) {
-            ul.removeClass('none');
-            var arrow = topNav.one('i');
-            if(arrow) {
-                arrow.html('&#405');
-            }
-        }
-    }
-}
-```
-
-视图类 menus 继承自 magix/view，基类初始化时为每一个视图实例写入了若干属性，包括之前用到的
-`this.tmpl` 和本例使用的 `this.id`、`this.location`。
-
-this.id 为当前视图所处 vframe 节点的 id，也就是当前视图的根 DOM 节点 id。
-
-this.location 为整个 url 的 hash 部分按照 Magix 约定的规则解析后的结构化对象，主要包含
-逻辑页面名称（path）和参数（params）等。
-
-**注意**
-
-1. 在 Magix 中，VOM、View、VFrame 对象的实例都不持有 DOM 节点，仅持有节点 ID，这有助于
-   控制单页应用的内存占用。
-2. 示例中的图标使用 iconfont 技术，iconfont 的自定义字体库中的每个字都是一个图标，通过
-   字符编码来设置图标(如 `&#405`，是向下箭头)。详见:<http://ux.etao.com/fonts>
-
-### observeLocation
-
-observeLocation 方法会在页面 url 发生改变时，并且我们指定的参数发生变化时，view的render方法被再次调用，在本例中我们先采用每次 url path发生变化时
-重新渲染整个菜单的方案。
-
-
-在视图初始化时，通过 observeLocation 指定只关注 path 的变化，只有 path 变化时
-render 方法才会被调用。也可以利用这个方法来明确指定仅关注 url 某些参数的变化。
-详见：@API。
-
-**思考**
-
-即便是只有 path 变化时触发 render 重新构建 menus
-的所有 DOM 的解决方案看起来依然不够好。理想的状况是，仅仅通过 DOM 方法去改变高亮和子菜单的
-收起展开状态，但这会引入额外的代码量。
-
-当前我们的 sync 部分，都是从一个 render 之后的固定状态 A 出发，根据 path 设置高亮
-到达最终状态 B 或者 C，即：A -> anystate。
-
-如果不重新 render，想从 B 直接变化至 C，sync部分代码必须将状态从 B 还原至 A 状态，再
-设置成 C 状态，即：anystate -> A -> anystate.
-
-在针对具备自定义交互模式的组件实现中（即便本例的交互并不太复杂，也既要去除高亮，又可能需要
-收起二级菜单并改变箭头方向等等）， anystate -> A 的还原过程需要大量 hardcode，而越过 A
-直接做到 anystate -> anystate 的实现会更加复杂。
-
-最终这件事归结为一个代码量与点滴性能消耗之间的选择题。在 Magix 以及后续会介绍 Brix 组件
-架构中，我们倾向于通过重构 DOM 的方法来回归状态 A，并尽可能借助模板引擎在渲染之前同步完成
-A -> anystate 的过程，同时我们会尝试尽可能的让需要重构区域变小。
-
-而时下流行的基于数据和结构双向绑定组件实现方案，是否必须要具备
-anystate( -> A) -> anystate 的能力呢？
-
-### events ：事件处理
-
-在 menus 视图中，我需要在用户点击一级菜单时展开或隐藏二级菜单。我们以 "推广计划"(一级菜单)
--> "标准推广"(二级菜单) 这一菜单组为例
+`app/views/menus.html` 中链接如下：
 
 ```html
-<li class="topnav-list">
-    <a href="#" mx-click="toggleSubMenus<prevent>">
-        <i class="iconfont">&#402;</i>
-        推广计划
-    </a>
-    <ul class="subnav none">
-        <li class="subnav-list">
-                <a class="text" href="#!/campaigns/standards">标准推广</a>
-            </li>
-    </ul>
+<li class="subnav-list">
+    <a class="text" href="#!/account/recharge">充值</a>
 </li>
 ```
 
-这个代码片段的第二行需要特别注意：`<a href="#" mx-click="toggleSubMenus<prevent>">`
-从字面上就很好理解，我们希望在点击这个 a 标签时做状态切换，但我们用了自定义属性 mx-click，
-而非原生的 onclick，也非 KISSY、jQuery 等常推荐的事件绑定方案。
-
-其首要原因依然是出于对单页应用内存占用的考量，我们希望通过这种方式能够在架构层面减少在实际
-业务代码中出现系列可能触发内存泄露的代码写法。在这之前我们看 events 的 JS 代码部分：
-
-```js
-'toggleSubMenus<click>' : function(e) {
-    // 获取被点击的标签 A
-    var target = S.one('#' + e.targetId);
-
-    if (target[0].tagName == "I") {
-        target = target.parent();
-    }
-    // 改变 A 的兄弟节点 ul 和 A 的子节点 arrow 的状态
-    var ul = target.next("ul");
-    var arrow = target.one("i");
-
-    if (ul.hasClass("none")) {
-        ul.removeClass("none");
-        arrow.html("&#405");
-    } else {
-        ul.addClass("none");
-        arrow.html("&#402");
-    }
-}
-```
-
-首先 `toggleSubMenus<click>` 和 init、render 一样将被混入 menus 类的原型链。此方法名
-比较特殊，当 menus 类被初始化时会遍历自身方法，将这类事件监听函数代理（委托）由Magix统一添加到document.body节点上。
-
-当点击事件发生时，我们可以通过被点击元素的 `mx-click` 属性值找到对应的处理函数。关于这套
-另类事件代理方案详情，以及在内存控制方面的相关研究，请参考：[Maigx中的事件处理](http://thx.github.io/magix/articles/about-delegate-event/)
-
 **注意**
 
-1. 我们自然需要点击 `<i>` 标签包含的箭头时，同样可以展开或收起子菜单，针对常见的类似 `<a>`
-   标签内包含图标或图片等的情况，Magix 做了处理，这样就无需为 `<i>` 标签也增加 `mx-click`
-   属性。
-2. 我们看到 `<prevent>` 标识来告诉事件处理函数，阻止 `<a>` 标签的默认行为。
+`<a>` 标签中的 href 是 `#!/account/recharge` 类似这样的写法。首页是 `/home`，只有一级，
+而其它的是类似 `/account/recharge` 两级的形式，后面在这个地方特殊处理下。
 
-另外，还值得注意的是，在 Magix 1.1 版本中，遵循了最小加载原则，默认是没有加载 KISSY 的
-Node 模块的，我们需要自行引入：
+### 2. 在主体区域显示相关的内容
 
-```diff
---- a/index.html
-+++ b/index.html
-@@ -19,7 +19,7 @@
-           }
-       ]
-   })
--  KISSY.use('magix/magix', function(S, Magix) {
-+  KISSY.use('magix/magix,node', function(S, Magix) {
-       Magix.start({
-           iniFile: 'app/ini',
-       })
+不管是首页还是标准计划列表，我们注意到整体页面的布局并没有改变，所以我们只需要在
+app/views/default 中来决定右侧区域如何渲染。
+
+在这一步中，我们为了后续的开发和维护方便，我们根据 **首页** 或 **推广计划** 来建立新的
+文件夹，并把与之相关的view放在各自的文件中进行管理，所以这时候文件结构可能是这样的：
+
+```bash
+src
+ └─app
+     │  ini.js
+     │
+     ├─assets
+     │      global.css
+     │
+     ├─common
+     │      mustache.js
+     │
+     └─views
+         │  default.html
+         │  default.js
+         │  header.html
+         │  header.js
+         │  menus.html
+         │  menus.js
+         │
+         ├─account
+         │      finance.html
+         │      finance.js
+         │      operation.html
+         │      operation.js
+         │      recharge.html
+         │      recharge.js
+         │      remind.html
+         │      remind.js
+         │
+         ├─campaigns
+         │      standards.html
+         │      standards.js
+         │
+         └─home
+                 index.html
+                 index.js
+
+```
+
+1. 在 src/app/views/home 文件夹下建立 index.html 和 index.js
+2. 在 src/app/views/campaigns 文件夹下建立 standards.html 和 standards.js
+3. 视图的建立及显示 步骤1 和 步骤2 已经介绍过了，所以这里不再重复。
+
+我们先在各自的 html 里写入简单的一句话用做测试，先不书写大量的代码。
+
+接下来我们来做最重要的一块： **根据 pathname 显示相应的 view**
+
+我们的 pathname 是：
+
+- /home
+- /campaings/standards
+
+而我们的文件夹路径（KISSY 模块标识）是：
+
+- app/views/home/index
+- app/views/campaings/standards
+
+所以我们需要一定的策略把 pathname 转换成 KISSY 的模块标识。
+
+处理后的 default.js 代码长这样：
+
+```js
+KISSY.add("app/views/default", function(S, View, VOM) {
+    return View.extend({
+        init: function() {
+            this.observeLocation({
+                path: true
+            });
+        },
+        render: function(e) {
+            if (!e) {
+                this.setHTML(this.id, this.tmpl);
+            }
+            this.mountMainFrame();
+        },
+        mountMainFrame: function() {
+            var path = this.location.path;
+            var pns = path.split('/');
+            pns.shift();
+            if (pns[0] == 'index') {
+                pns[0] = 'home'; //特殊处理home
+                pns[1] = 'index';
+            }
+            var viewPath = 'app/views/' + pns.join('/');
+            var vframe = VOM.get('magix_vf_main');
+
+            vframe.mountView(viewPath);
+        }
+    });
+}, {
+    requires: ['magix/view', 'magix/vom']
+});
+```
+
+此时就可以点击左侧的链接切换主区域了。
+
+### 3.获取异步数据
+
+假设在 **推广计划-标准推广** 下显示一个列表。
+
+首先在项目目录下建议一个 api 目录，我们后续会把所有暂时用的模拟数据放在该目录里。
+在 api 目录下建立一个 list.json 做为我们的数据源，里面的内容如下：
+
+```json
+[{
+    "campaignId": "4956820",
+    "title": "明星店铺",
+    "type": "1",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "100%"
+}, {
+    "campaignId": "2804049",
+    "title": "立如计划立如计划立如计划立如计划立如",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "249%"
+}, {
+    "campaignId": "4948049",
+    "title": "sid = 131234567890",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "100%"
+}, {
+    "campaignId": "4949219",
+    "title": "修改campaign-操作日志",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "1000%"
+}, {
+    "campaignId": "1000090709",
+    "title": "专用Campaign",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "0",
+    "discount": "100%"
+}, {
+    "campaignId": "1000096773",
+    "title": "1",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "0",
+    "discount": "100%"
+}, {
+    "campaignId": "4949061",
+    "title": "曲舞量子数据测试-勿删勿改",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "0%"
+}, {
+    "campaignId": "2000065",
+    "title": "qqqqqq33",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "250%"
+}, {
+    "campaignId": "1000007722",
+    "title": "sem-test-quwu",
+    "type": "0",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "100%"
+}, {
+    "campaignId": "1000090088",
+    "title": "服务化新增全店[勿动]",
+    "type": "2",
+    "onlineState": "1",
+    "settleState": "0",
+    "discount": "100%"
+}, {
+    "campaignId": "1000058968",
+    "title": "活动专区",
+    "type": "3",
+    "onlineState": "1",
+    "settleState": "1",
+    "discount": "100%"
+}, {
+    "campaignId": "1000105371",
+    "title": "defaulttitle",
+    "type": "4",
+    "onlineState": "1",
+    "settleState": "0",
+    "discount": "100%"
+}, {
+    "campaignId": "1000105590",
+    "title": "defaulttitle",
+    "type": "4",
+    "onlineState": "1",
+    "settleState": "0",
+    "discount": "100%"
+}]
+```
+
+修改 app/views/campaings/standards.js 的代码：
+
+```
+/*
+ * author:xinglie.lkf@taobao.com
+ */
+KISSY.add("app/views/campaigns/standards", function(S, View, IO) {
+    return View.extend({
+        render: function() {
+            var me = this;
+            IO({
+                url: 'api/list.json',
+                dataType: 'json',
+                success: function(data) {
+                    me.setHTML(me.id,data.length); //先简单的在界面上把数据的条数打印出来
+                },
+                error: function(xhr, msg) {
+                    me.setHTML(me.id,msg); //出错时，直接显示错误
+                }
+            });
+        }
+    })
+}, {
+    requires: ["magix/view", "ajax"]
+});
+```
+
+通过以上示例，我们使用 KISSY 的 ajax 取得服务器数据并显示出来多少条数据，接下来我们介绍
+使用模板渲染视图。
+
+### 4.使用模板渲染
+
+逻辑与展现分离的好处就不多说了，magix 的视图层本身也是分为 html 与 js 的，所以接下来我们
+把刚才取到的数据使用模板来生成最终的 html。
+
+前端模板引擎在这里我们采用 mustache，为了适应 KISSY 模块加载，我们稍微改造了下，可以参考
+源码。改造后的 mustache 放在 app/common/mustache
+
+更多 mustache的信息请[参考这里](http://mustache.github.io/)
+
+改造后的 js 写法：
+
+```
+/*
+ * author:xinglie.lkf@taobao.com
+ */
+KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache) {
+    return View.extend({
+        render: function() {
+            var me = this;
+            IO({
+                url: 'api/list.json',
+                dataType: 'json',
+                success: function(data) {
+                    var html = Mustache.to_html(me.tmpl, {
+                        list: data
+                    });
+                    me.setHTML(me.id, html);
+                },
+                error: function(xhr, msg) {
+                    me.setHTML(me.id, msg); //出错时，直接显示错误
+                }
+            });
+        }
+    })
+}, {
+    requires: ["magix/view", "ajax", "app/common/mustache"]
+});
+```
+
+修改 app/campaigns/views/standards.html 如下：
+
+```html
+<table class="table">
+  <thead>
+    <tr>
+      <th width="20"></th>
+      <th width="60">计划ID</th>
+      <th class="left">计划名称</th>
+      <th width="90">折扣(%)</th>
+      <th width="90">类型</th>
+      <th width="90">在线状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#list}}
+    <tr>
+      <td>
+        <label class="checkbox">
+          <input type="checkbox" class="selectLine" value="{{campaignId}}" />
+        </label>
+      </td>
+      <td>{{campaignId}}</td>
+      <td>{{title}}</td>
+      <td>{{discount}}</td>
+      <td>{{type}}</td>
+      <td>{{onlineState}}</td>
+    </tr>
+    {{/list}}
+  </tbody>
+</table>
+```
+
+这地方我们使用了brix/gallery/tables组件，因此在index.html的head里要把相应的css也加上
+
+```html
+<link rel="stylesheet" type="text/css" href="http://a.tbcdn.cn/apps/e/brix/gallery/tables/tables.css">
 ```
 
 ## 小结
 
-在这一阶段，我们介绍了一个简单的菜单视图的开发，是 Magix 的核心。当我们后续引入模板系统，
-并引入异步的动态数据之后，就是一个完整的单个视图开发方案了。而 Magix 又进一步的通过 VOM
-树，将多个视图关联到一起，这样最终形成了完整的 Magix 的视图层设计。
-
-从另一个角度，当一个视图抛开了对 url变化的监听，Magix 的单个视图构建方案又可以看做
-一个完整的组件搭建模式，包含初始化、销毁，以及明确的 render\sync\bind 方案。这正式多次
-提到的 Brix 组件架构的雏形。
-
-接下来是时候给应用的主区域添加一些内容了。
+在这一阶段，我们介绍了如何根据 path 动态地渲染想要的视图，如何获取后台数据及使用模板
+引擎来帮助我们渲染界面。

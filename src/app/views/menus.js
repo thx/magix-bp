@@ -2,7 +2,7 @@ KISSY.add("app/views/menus", function(S, View) {
     return View.extend({
         init: function() {
             this.observeLocation({
-                path: true
+                pathname: true
             });
         },
 
@@ -32,6 +32,10 @@ KISSY.add("app/views/menus", function(S, View) {
                     }
                 }
             }
+        },
+
+        locationChange: function(e) {
+            this.render();
         },
 
         'toggleSubMenus<click>': function(e) {

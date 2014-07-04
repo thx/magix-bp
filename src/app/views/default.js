@@ -1,9 +1,30 @@
-KISSY.add("app/views/default", function(S, View) {
+KISSY.add("app/views/default", function(S, View, VOM) {
     return View.extend({
-        render: function() {
-            this.setHTML(this.id, this.tmpl);
+        init: function() {
+            this.observeLocation({
+                path: true
+            });
+        },
+        render: function(e) {
+            if (!e) {
+                this.setHTML(this.id, this.tmpl);
+            }
+            this.mountMainFrame();
+        },
+        mountMainFrame: function() {
+            var path = this.location.path;
+            var pns = path.split('/');
+            pns.shift();
+            if (pns[0] == 'index') {
+                pns[0] = 'home'; //特殊处理home
+                pns[1] = 'index';
+            }
+            var viewPath = 'app/views/' + pns.join('/');
+            var vframe = VOM.get('magix_vf_main');
+
+            vframe.mountView(viewPath);
         }
     });
 }, {
-    requires: ['magix/view']
+    requires: ['magix/view', 'magix/vom']
 });

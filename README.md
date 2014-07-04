@@ -44,7 +44,7 @@ module.exports = function(grunt) {
                 //中文转化unicode
                 c2u: false,
                 //view对应模板字段的key
-                tmplKey: 'template'
+                tmplKey: 'tmpl'
             }
         }
     });

@@ -1,6 +1,6 @@
 KISSY.add('app/ini', function(S) {
     return {
-        defaultView: 'app/common/views/default',
+        defaultView: 'app/views/default',
         routes: function(pathname) {
             return this.defaultView;
         }

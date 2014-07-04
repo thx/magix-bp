@@ -7,13 +7,13 @@
 </head>
 <body>
   <script src="http://g.tbcdn.cn/kissy/k/1.4.0/seed-min.js"></script>
-  <script src="http://g.tbcdn.cn/thx/magix/1.1/kissy-magix-min.js"></script>
+  <script src="http://g.tbcdn.cn/thx/magix/1.2/kissy-magix-min.js"></script>
   <script>
   KISSY.config({
       packages: [
           {
               name: 'app',
-              path: '.',
+              path: './src/',//开发阶段我们把放有源码放在src目录中，方便后面的打包上线
               debug: true
           }
       ]

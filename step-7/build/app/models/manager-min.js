@@ -1,0 +1,1 @@
+KISSY.add("app/models/manager",function(a,b,c){var d=b.create(c);return d.registerModels([{name:"Campaigns_List",url:"api/list.json"}]),d},{requires:["magix/manager","app/models/model"]});

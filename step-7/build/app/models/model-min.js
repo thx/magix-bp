@@ -1,0 +1,1 @@
+KISSY.add("app/models/model",function(a,b,c){return b.extend({sync:function(a){var b=this;c({url:b.get("url"),dataType:"json",success:function(b){a(null,{list:b})},error:function(b,c){a(c)}})}})},{requires:["magix/model","io"]});

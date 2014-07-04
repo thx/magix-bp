@@ -21,7 +21,7 @@
   KISSY.use('magix/magix', function(S, Magix) {
       Magix.start({
           iniFile: 'app/ini',
-          execError: function(e) {
+          error: function(e) {
               // 为了防止某个视图出错导致整个应用挂掉，压缩版的 magix 会吞掉异常，
               // 在线上通过如下方式收集错误：
               //

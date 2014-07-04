@@ -44,7 +44,7 @@ KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache, Route
 
         'sort<click>': function(e) {
             var loc = this.location;
-            var sortby = loc.get('sortby'); // 获取地址栏当前存放的 sortby 参数，如果地址中不存在则值为 undefined
+            var sortby = loc.get('sortby'); // 获取地址栏当前存放的 sortby 参数，如果地址中不存在则值为 ''
 
             if (sortby == 'desc') {
                 sortby = 'asc';

@@ -142,7 +142,7 @@ render: function() {
 
 ```html
 <th width="90">折扣(%)
-  <i class="iconfont" mx-click="sort{key:discount}">
+  <i class="iconfont" mx-click="sort({key:'discount'})">
     {{#sortDesc}}&#320;{{/sortDesc}}{{^sortDesc}}&#322;{{/sortDesc}}
   </i>
 </th>

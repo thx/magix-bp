@@ -15,9 +15,8 @@ KISSY.add("app/views/default", function(S, View, VOM) {
             var path = this.location.path;
             var pns = path.split('/');
             pns.shift();
-            if (pns[0] == 'index') {
-                pns[0] = 'home'; //特殊处理home
-                pns[1] = 'index';
+            if (pns[0] == 'home') {
+                pns.push('index'); //特殊处理home
             }
             var viewPath = 'app/views/' + pns.join('/');
             var vframe = VOM.get('magix_vf_main');

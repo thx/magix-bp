@@ -23,7 +23,7 @@ Application，一个页面一个应用。所以，我们先要把这一个入口
 </head>
 <body>
   <script src="http://g.tbcdn.cn/kissy/k/1.4.0/seed-min.js"></script>
-  <script src="http://g.tbcdn.cn/thx/magix/1.1/kissy-magix-min.js"></script>
+  <script src="http://g.tbcdn.cn/thx/magix/1.2/kissy-magix-min.js"></script>
   <script>
   KISSY.config({
       packages: [
@@ -37,7 +37,7 @@ Application，一个页面一个应用。所以，我们先要把这一个入口
   KISSY.use('magix/magix', function(S, Magix) {
       Magix.start({
           iniFile: 'app/ini',
-          execError: function(e) {
+          error: function(e) {
             throw e
           }
       })
@@ -51,7 +51,7 @@ Application，一个页面一个应用。所以，我们先要把这一个入口
 
 - 基础样式 [Cube](http://thx.github.io/cube)
 - [KISSY 1.4.0 Seed](http://docs.kissyui.com)
-- 基于 KISSY 的 [Magix 1.1](http://thx.github.io/magix-api/)
+- 基于 KISSY 的 [Magix 1.2](http://thx.github.io/magix-api/)
 
 引入后，我们配置了当前项目的包名称与路径：
 
@@ -73,7 +73,7 @@ KISSY.config({
 KISSY.use('magix/magix', function(S, Magix) {
     Magix.start({
         iniFile: 'app/ini',
-        execError: function(e) {
+        error: function(e) {
             throw e
         }
     })
@@ -113,7 +113,7 @@ KISSY.add('app/ini', function(S) {
 ```
 
 Magix 基于树状层次化的结构构建 View，每个逻辑页面都有且只有一个根 View。所以在 app/ini
-模块中，仅需配置每个 pathname 和其根视图之间的对应关系。(讨论1，VOM Vframe View)
+模块中，仅需配置每个 pathname 和其根视图之间的对应关系。
 
 根视图往往决定页面的基础布局，多数 app 的基础布局很少改变（如：头、尾、侧边、主区域模式），
 所以多数情况下 pathname 对应着相同的视图。
@@ -132,7 +132,7 @@ app/views/default.js :
 KISSY.add("app/views/default", function(S, View) {
   return View.extend({
     render : function() {
-      this.setViewHTML(this.template);
+      this.setHTML(this.id,this.tmpl);
     }
   });
 }, {
@@ -147,7 +147,7 @@ app/views/default.html :
 ```
 
 * 所有视图都需继承 magix/view
-* 重写 render 方法，调用 setViewHTML 方法，将模板内容 `this.template` 写入 View
-  的容器。关于 View 的生命周期，(讨论2，Viw填空开发，生命周期)
+* 重写 render 方法，调用 setViewHTML 方法，将模板内容 `this.tmpl` 写入 View
+  的容器
 
 至此，在浏览器的地址中输入  http://localhost/magix-tutorial/ 即可看到本教程开始时的效果

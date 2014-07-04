@@ -34,10 +34,6 @@ KISSY.add("app/views/menus", function(S, View) {
             }
         },
 
-        locationChange: function(e) {
-            this.render();
-        },
-
         'toggleSubMenus<click>': function(e) {
             // 获取被点击的标签 A
             var target = S.one('#' + e.targetId);

@@ -1,309 +1,54 @@
-开发完成顶部，页脚，菜单后，让我们把右侧区域丰满起来吧，根据左侧的菜单改变右侧的内容
+## 页面状态
 
-![Step 3](http://thx.github.io/magix/assets/img/step-3.png)
+![Step 4](http://thx.github.io/magix/assets/img/step-4.png)
 
-## 主要区域开发
+### 保存与还原
 
-### 1. 确定 pathname
+现在我们要对上一个步骤中的列表进行排序，并记录该列是升序还是降序。要做到页面刷新、通过 URL
+直接跳转至当前页等情况下都能还原当前的排序状态，我们需要将相关信息保存在 URL 中。
 
-为了方便后续开发，我们先根据菜单内容规划 pathname，因为是单页应用，所以我们规划的都是逻辑
-地址：
+主要通过 magix/router 的 navigate 方法操作 URL （详见API）。
 
-<table>
-  <tr>
-    <td>首页</td>
-    <td>/home</td>
-  </tr>
-  <tr>
-    <td>推广计划-标准推广</td>
-    <td>/campaings/standards</td>
-  </tr>
-  <tr>
-    <td>账户-充值</td>
-    <td>/account/recharge</td>
-  </tr>
-  <tr>
-    <td>账户-财务记录</td>
-    <td>/account/finance</td>
-  </tr>
-  <tr>
-    <td>账户-操作记录</td>
-    <td>/account/operation</td>
-  </tr>
-  <tr>
-    <td>账户-提醒设置</td>
-    <td>/account/remind</td>
-  </tr>
-</table>
+为了实现需求，首先给第一行的需要排序的列头注册 click 事件（假设我们给折扣进行排序），以便
+在鼠标点击时排序：
 
-`app/views/menus.html` 中链接如下：
-
-```html
-<li class="subnav-list">
-    <a class="text" href="#!/account/recharge">充值</a>
-</li>
+```diff
+--- a/app/views/campaigns/standards.html
++++ b/app/views/campaigns/standards.html
+@@ -4,7 +4,7 @@
+       <th width="20"></th>
+       <th width="60">计划ID</th>
+       <th class="left">计划名称</th>
+-      <th width="90">折扣(%)</th>
++      <th width="90">折扣(%)<i class="iconfont" mx-click="sort{key:discount}">&#322;</i></th>
+       <th width="90">类型</th>
+       <th width="90">在线状态</th>
+     </tr>
 ```
 
 **注意**
 
-`<a>` 标签中的 href 是 `#!/account/recharge` 类似这样的写法。首页是 `/home`，只有一级，
-而其它的是类似 `/account/recharge` 两级的形式，后面在这个地方特殊处理下。
+在上例中我们使用了 iconfont 而非图片来显示排序的箭头，更多 iconfont 信息可
+[参考这里](http://iconfont.cn)。`mx-event` 的写法及 `{key:discount}` 的参数传递，
+可参考 Magix API 事件部分。
 
-### 2. 在主体区域显示相关的内容
+此时的界面如下：
 
-不管是首页还是标准计划列表，我们注意到整体页面的布局并没有改变，所以我们只需要在
-app/views/default 中来决定右侧区域如何渲染。
 
-在这一步中，我们为了后续的开发和维护方便，我们根据 **首页** 或 **推广计划** 来建立新的
-文件夹，并把与之相关的view放在各自的文件中进行管理，所以这时候文件结构可能是这样的：
+界面显示出来了，但还无法响应排序动作，接下来我们书写事件处理函数 sort 方法。修改
+app/campaigns/views/standards.js 增加如下内容：
 
-```bash
-src
- └─app
-     │  ini.js
-     │
-     ├─assets
-     │      global.css
-     │
-     ├─common
-     │      mustache.js
-     │
-     └─views
-         │  default.html
-         │  default.js
-         │  header.html
-         │  header.js
-         │  menus.html
-         │  menus.js
-         │
-         ├─account
-         │      finance.html
-         │      finance.js
-         │      operation.html
-         │      operation.js
-         │      recharge.html
-         │      recharge.js
-         │      remind.html
-         │      remind.js
-         │
-         ├─campaigns
-         │      standards.html
-         │      standards.js
-         │
-         └─home
-                 index.html
-                 index.js
-
-```
-
-1. 在 src/app/views/home 文件夹下建立 index.html 和 index.js
-2. 在 src/app/views/campaigns 文件夹下建立 standards.html 和 standards.js
-3. 视图的建立及显示 步骤1 和 步骤2 已经介绍过了，所以这里不再重复。
-
-我们先在各自的 html 里写入简单的一句话用做测试，先不书写大量的代码。
-
-接下来我们来做最重要的一块： **根据 pathname 显示相应的 view**
-
-我们的 pathname 是：
-
-- /home
-- /campaings/standards
-
-而我们的文件夹路径（KISSY 模块标识）是：
-
-- app/views/home/index
-- app/views/campaings/standards
-
-所以我们需要一定的策略把 pathname 转换成 KISSY 的模块标识。
-
-处理后的 default.js 代码长这样：
-
-```js
-KISSY.add("app/views/default", function(S, View, VOM) {
-    return View.extend({
-        init: function() {
-            this.observeLocation({
-                path: true
-            });
-        },
-        render: function(e) {
-            if (!e) {
-                this.setHTML(this.id, this.tmpl);
-            }
-            this.mountMainFrame();
-        },
-        mountMainFrame: function() {
-            var path = this.location.path;
-            var pns = path.split('/');
-            pns.shift();
-            if (pns[0] == 'index') {
-                pns[0] = 'home'; //特殊处理home
-                pns[1] = 'index';
-            }
-            var viewPath = 'app/views/' + pns.join('/');
-            var vframe = VOM.get('magix_vf_main');
-
-            vframe.mountView(viewPath);
-        }
-    });
-}, {
-    requires: ['magix/view', 'magix/vom']
-});
-```
-
-此时就可以点击左侧的链接切换主区域了。
-
-### 3.获取异步数据
-
-假设在 **推广计划-标准推广** 下显示一个列表。
-
-首先在项目目录下建议一个 api 目录，我们后续会把所有暂时用的模拟数据放在该目录里。
-在 api 目录下建立一个 list.json 做为我们的数据源，里面的内容如下：
-
-```json
-[{
-    "campaignId": "4956820",
-    "title": "明星店铺",
-    "type": "1",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "100%"
-}, {
-    "campaignId": "2804049",
-    "title": "立如计划立如计划立如计划立如计划立如",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "249%"
-}, {
-    "campaignId": "4948049",
-    "title": "sid = 131234567890",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "100%"
-}, {
-    "campaignId": "4949219",
-    "title": "修改campaign-操作日志",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "1000%"
-}, {
-    "campaignId": "1000090709",
-    "title": "专用Campaign",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "0",
-    "discount": "100%"
-}, {
-    "campaignId": "1000096773",
-    "title": "1",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "0",
-    "discount": "100%"
-}, {
-    "campaignId": "4949061",
-    "title": "曲舞量子数据测试-勿删勿改",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "0%"
-}, {
-    "campaignId": "2000065",
-    "title": "qqqqqq33",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "250%"
-}, {
-    "campaignId": "1000007722",
-    "title": "sem-test-quwu",
-    "type": "0",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "100%"
-}, {
-    "campaignId": "1000090088",
-    "title": "服务化新增全店[勿动]",
-    "type": "2",
-    "onlineState": "1",
-    "settleState": "0",
-    "discount": "100%"
-}, {
-    "campaignId": "1000058968",
-    "title": "活动专区",
-    "type": "3",
-    "onlineState": "1",
-    "settleState": "1",
-    "discount": "100%"
-}, {
-    "campaignId": "1000105371",
-    "title": "defaulttitle",
-    "type": "4",
-    "onlineState": "1",
-    "settleState": "0",
-    "discount": "100%"
-}, {
-    "campaignId": "1000105590",
-    "title": "defaulttitle",
-    "type": "4",
-    "onlineState": "1",
-    "settleState": "0",
-    "discount": "100%"
-}]
-```
-
-修改 app/views/campaings/standards.js 的代码：
-
-```
-/*
- * author:xinglie.lkf@taobao.com
- */
-KISSY.add("app/views/campaigns/standards", function(S, View, IO) {
-    return View.extend({
-        render: function() {
-            var me = this;
-            IO({
-                url: 'api/list.json',
-                dataType: 'json',
-                success: function(data) {
-                    me.setHTML(me.id,data.length); //先简单的在界面上把数据的条数打印出来
-                },
-                error: function(xhr, msg) {
-                    me.setHTML(me.id,msg); //出错时，直接显示错误
-                }
-            });
-        }
-    })
-}, {
-    requires: ["magix/view", "ajax"]
-});
-```
-
-通过以上示例，我们使用 KISSY 的 ajax 取得服务器数据并显示出来多少条数据，接下来我们介绍
-使用模板渲染视图。
-
-### 4.使用模板渲染
-
-逻辑与展现分离的好处就不多说了，magix 的视图层本身也是分为 html 与 js 的，所以接下来我们
-把刚才取到的数据使用模板来生成最终的 html。
-
-前端模板引擎在这里我们采用 mustache，为了适应 KISSY 模块加载，我们稍微改造了下，可以参考
-源码。改造后的 mustache 放在 app/common/mustache
-
-更多 mustache的信息请[参考这里](http://mustache.github.io/)
-
-改造后的 js 写法：
-
-```
-/*
- * author:xinglie.lkf@taobao.com
- */
-KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache) {
-    return View.extend({
-        render: function() {
+```diff
+--- a/app/views/campaigns/standards.js
++++ b/app/views/campaigns/standards.js
+@@ -1,7 +1,7 @@
+ /*
+  * author:xinglie.lkf@taobao.com
+  */
+-KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache) {
++KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache, Router) {
+     return View.extend({
+         render: function() {
             var me = this;
             IO({
                 url: 'api/list.json',
@@ -318,53 +63,133 @@ KISSY.add("app/views/campaigns/standards", function(S, View, IO, Mustache) {
                     me.setHTML(me.id, msg); //出错时，直接显示错误
                 }
             });
-        }
-    })
-}, {
-    requires: ["magix/view", "ajax", "app/common/mustache"]
+        },
++
++        'sort<click>': function(e) {
++            var loc = this.location;
++            var sortby = loc.get('sortby'); // 获取地址栏当前存放的 sortby 参数，如果地址中不存在则值为 ''
++
++            if (sortby == 'desc') {
++                sortby = 'asc';
++            } else {
++                sortby = 'desc';
++            }
++            var sortkey = e.params.key; // 获取按哪个字段进行排序
++
++            Router.navigate({ // 通过 Router.navigate 改变地址中的参数
++                sortkey: sortkey,
++                sortby: sortby
++            });
+         }
+     })
+ }, {
+-    requires: ["magix/view", "ajax", "app/common/base/mustache"]
++    requires: ["magix/view", "ajax", "app/common/base/mustache", 'magix/router']
+ });
+```
+
+此时我们仅仅是把相应的参数放到地址栏中，页面还不能根据地址栏参数排序。我们可以在视图init中增加
+observeLocation 来监听地址栏地址的变化。在该方法内我们决定如何调整界面的显示：
+
+```js
+this.observeLocation({
+    params: 'sortby,sortkey'
 });
 ```
 
-修改 app/campaigns/views/standards.html 如下：
+当 sortkey 或 sortby 发生改变后，我们仅仅是再次调用了 render 方法去重新渲染，因此我们需要
+改造 render 方法：
 
-```html
-<table class="table">
-  <thead>
-    <tr>
-      <th width="20"></th>
-      <th width="60">计划ID</th>
-      <th class="left">计划名称</th>
-      <th width="90">折扣(%)</th>
-      <th width="90">类型</th>
-      <th width="90">在线状态</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{#list}}
-    <tr>
-      <td>
-        <label class="checkbox">
-          <input type="checkbox" class="selectLine" value="{{campaignId}}" />
-        </label>
-      </td>
-      <td>{{campaignId}}</td>
-      <td>{{title}}</td>
-      <td>{{discount}}</td>
-      <td>{{type}}</td>
-      <td>{{onlineState}}</td>
-    </tr>
-    {{/list}}
-  </tbody>
-</table>
+```js
+render: function() {
+    var me = this;
+    IO({
+        url: 'src/api/list.json',
+        dataType: 'json',
+        success: function(data) {
+            var loc = me.location;
+            var sortby = loc.get('sortby');
+            var sortkey = loc.get('sortkey');
+            if (sortby && sortkey) { //地址栏中存在sortby和sortkey
+                data.sort(function(a, b) { //直接调用数据的sort方法进行排序
+                    var aValue = a[sortkey];
+                    var bValue = b[sortkey];
+                    aValue = parseInt(aValue.substring(0, aValue.length - 1), 10); //因示例中折扣是类似90%这样的字符串，因此去掉%号并转成整数
+                    bValue = parseInt(bValue.substring(0, bValue.length - 1), 10);
+                    if (sortby == 'asc') {//根据排序要求，进行相应的升序降序排序
+                        return aValue - bValue;
+                    } else {
+                        return bValue - aValue;
+                    }
+                });
+            }
+            var html = Mustache.to_html(me.tmpl, {
+                list: data,
+                sortDesc: sortby == 'desc'
+            });
+            me.setHTML(me.id,html);
+        },
+        error: function(xhr, msg) {
+            me.setHTML(me.id,msg); //出错时，直接显示错误
+        }
+    });
+}
 ```
 
-这地方我们使用了brix/gallery/tables组件，因此在index.html的head里要把相应的css也加上
+此时点击箭头界面即可排序，但我们注意到折扣后面的箭头并未进行改变，而是一直指向上方，所以
+接下来要调整箭头，注意前面我们使用 mustache 渲染时，传递了 `sortDesc: sortby == 'desc'`
+这个参数，所以在界面上我们根据 sortDesc 进行相应的调整即可。
 
 ```html
-<link rel="stylesheet" type="text/css" href="http://a.tbcdn.cn/apps/e/brix/gallery/tables/tables.css">
+<th width="90">折扣(%)
+  <i class="iconfont" mx-click="sort{key:discount}">
+    {{#sortDesc}}&#320;{{/sortDesc}}{{^sortDesc}}&#322;{{/sortDesc}}
+  </i>
+</th>
 ```
+
+到这里我们就完成了排序功能，刷新页面、直接跳转等情况时，页面仍可正确响应，包括浏览器的前进、
+后退按钮，也都能正常工作。
+
+### url的变化事件
+
+如前面排序那样，我们在 sort 事件处理函数内仅仅是改变了 url 而已，接下来视图的
+render 方法被自动调用。
+
+在前面步骤三中我们接触到了 VOM，明白了视图之间是父子嵌套的一颗树，所以 url变化
+的事件传播如下图：
+
+![事件传播](http://gtms01.alicdn.com/tps/i1/T1FiC4FkVeXXXvOB2h-460-193.jpg)
+
+由经父视图传递到子视图，父视图可控制具体传给哪个子视图。
+
+考虑前面的例子，当地址栏参数 sortby 或 sortkey 有变化时，仅仅通知右侧区域列表即可，像
+header、footer 和菜单无须接收该事件，所以我们改写 app/common/views/default.js 中的
+render如下：
+
+```diff
+--- a/app/views/default.js
++++ b/app/views/default.js
+@@ -7,6 +7,9 @@ KISSY.add("app/views/default", function(S, View, VOM) {
+         render: function(e) {
+             if (e&&e.changed.isPath()) {
+                 this.mountMainFrame();
++            } else if (e&&e.changed.isParam('sortby,sortkey')) {
++                e.to('magix_vf_main');
++                // e.prevent();
+             }
+         },
+         mountMainFrame: function() {
+```
+
+调用 e 的 e.to 只向某一个或几个视图传递 url变化 的消息。如果调用
+e.prevent() 则所有的子视图都收不到 url变化 的消息。
+
+为什么这里要在父视图上进行 url变化 的处理？主要是为了性能的考虑，避免不必要的消息
+传递，当然，不处理我们的程序也没什么问题。
 
 ## 小结
 
-在这一阶段，我们介绍了如何根据 path 动态地渲染想要的视图，如何获取后台数据及使用模板
-引擎来帮助我们渲染界面。
+在这一阶段，我们学会了通过参数保存页面状态，同时了解了 url变化 的传播过程，
+在有必要的时候，可以在父视图上进行相应的控制，以提升整个应用的性能。
+

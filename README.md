@@ -4,9 +4,9 @@
 
 ## 主要区域开发
 
-### 1. 确定 pathname
+### 1. 确定 path
 
-为了方便后续开发，我们先根据菜单内容规划 pathname，因为是单页应用，所以我们规划的都是逻辑
+为了方便后续开发，我们先根据菜单内容规划 path，因为是单页应用，所以我们规划的都是逻辑
 地址：
 
 <table>
@@ -102,9 +102,9 @@ src
 
 我们先在各自的 html 里写入简单的一句话用做测试，先不书写大量的代码。
 
-接下来我们来做最重要的一块： **根据 pathname 显示相应的 view**
+接下来我们来做最重要的一块： **根据 path 显示相应的 view**
 
-我们的 pathname 是：
+我们的 path 是：
 
 - /home
 - /campaings/standards
@@ -114,7 +114,7 @@ src
 - app/views/home/index
 - app/views/campaings/standards
 
-所以我们需要一定的策略把 pathname 转换成 KISSY 的模块标识。
+所以我们需要一定的策略把 path 转换成 KISSY 的模块标识。
 
 处理后的 default.js 代码长这样：
 
@@ -136,9 +136,8 @@ KISSY.add("app/views/default", function(S, View, VOM) {
             var path = this.location.path;
             var pns = path.split('/');
             pns.shift();
-            if (pns[0] == 'index') {
-                pns[0] = 'home'; //特殊处理home
-                pns[1] = 'index';
+            if (pns[0] == 'home') {
+                pns.push('index'); //特殊处理home
             }
             var viewPath = 'app/views/' + pns.join('/');
             var vframe = VOM.get('magix_vf_main');

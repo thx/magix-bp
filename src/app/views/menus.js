@@ -2,7 +2,7 @@ KISSY.add("app/views/menus", function(S, View) {
     return View.extend({
         init: function() {
             this.observeLocation({
-                pathname: true
+                path: true
             });
         },
 

@@ -4,7 +4,7 @@
 KISSY.add("app/views/home/index", function(S, View) {
     return View.extend({
         render: function() {
-            this.setHTML(this.id, this.tmpl);
+            this.setViewHTML(this.template);
         }
     })
 }, {

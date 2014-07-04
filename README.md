@@ -2,7 +2,7 @@
 
 在src/app/目录下建立models文件夹，以便放我们项目中的model与manager
 
-建立src/app/models/model.js文件，继承mxext/model，并实现sync方法
+建立src/app/models/model.js文件，继承magix/model，并实现sync方法
 
 ```js
 KISSY.add('app/models/model', function(S, Model, IO) {
@@ -54,7 +54,7 @@ KISSY.add('app/models/manager', function(S, BaseManager, Model) {
 ```js
 render: function() {
     var me = this;
-    var request=Manager.createRequest(me).fetchAll('Campaigns_List', function(e, m) {
+    Manager.createRequest(me).fetchAll('Campaigns_List', function(e, m) {
         if (e) {
             me.setHTML(me.id,e.msg);
         } else {
@@ -82,7 +82,6 @@ render: function() {
             me.setHTML(me.id,html);
         }
     });
-    me.manage(request);//对请求进行托管
 }
 ```
 
@@ -92,10 +91,8 @@ render: function() {
 requires: ["magix/view", "app/models/manager", "app/common/mustache", 'magix/router']
 ```
 
-到此，我们就完成了使用Magix提供的Model与ModelManager来进行管理接口及异步的请求。
+到此，我们就完成了使用Magix提供的Model与Manager来进行管理接口及异步的请求。
 
-如上述示例中展示的代码，我们对me.manage(request)做一个说明：
+如上述示例中展示的代码，我们对Manager.createRequest(me)做一个说明：
 
 request.fetchX返回的是Request实例，(查看API)。本身带destroy方法，可以在合适的时候销毁请求，同时Magix内部对Request做了特殊处理，当view的render方法被调用时，就会立即销毁托管的Request实例，而不像前面提到的界面渲染前。
-
-讨论 Magix中的Model

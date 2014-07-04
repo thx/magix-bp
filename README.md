@@ -98,4 +98,4 @@ return View.extend({
 
 使用wrapAsync时，并不会调用xhr的abort方法，而使用manage时，会调用到xhr的abort方法，此时需要特别注意KISSY的JSONP
 
-xhr.abort的调用是在更新界面前才会被调用，如果需要在render方法调用时就abort上次的请求，此时无法使用manage，应监听view的prerender事件自行处理，或使用Magix提供的Model与ModelManager
+xhr.abort的调用是在更新界面前才会被调用，如果需要在render方法调用时就abort上次的请求，此时无法使用manage，应监听view的prerender事件自行处理，或使用Magix提供的Model与Manager

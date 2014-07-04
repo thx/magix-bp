@@ -64,7 +64,7 @@ Magix 的视图之间具备父子关系，形成了一棵树，称 VOM，(讨论
 @@ -2,7 +2,7 @@ KISSY.add('app/ini', function(S) {
      return {
          defaultView: 'app/views/default',
-+        defaultPath: '/index',
++        defaultPath: '/home',
          routes: function(pathname) {
 -            return this.defaultView;
 +            return pathname.indexOf('app/' === 0) ? pathname : this.defaultView
